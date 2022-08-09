@@ -3,55 +3,22 @@
 while (true)
 {
     var userMessage = Console.ReadLine();
-    if(userMessage == "exit" || string.IsNullOrEmpty(userMessage))
+    if (userMessage == "exit" || string.IsNullOrEmpty(userMessage))
     {
         break;
     }
 
     var input = int.Parse(userMessage);
-    var tempBanknotes = new Dictionary<int, int>();
-    var resultBanknotes = new Dictionary<int, int>();
+    var result = GetMoney(input, banknotes);
 
-    foreach (var banknote in banknotes)
+    if(result.Item3 == 0)
     {
-        if (input < banknote.Key)
+        foreach (var banknote in result.Item2)
         {
-            tempBanknotes[banknote.Key] = banknote.Value;
-            continue;
+            banknotes[banknote.Key] = banknote.Value;
         }
 
-        var sum = banknote.Key * banknote.Value;
-
-        if (sum == input)
-        {
-            resultBanknotes[banknote.Key] = banknote.Value;
-            input = 0;
-            break;
-        }
-
-        if (sum > input)
-        {
-            var rest = input % banknote.Key;
-            var needBanknotes = (input - rest) / banknote.Key;
-            tempBanknotes[banknote.Key] = banknote.Value - needBanknotes;
-            resultBanknotes[banknote.Key] = needBanknotes;
-            input = rest;
-        }
-        else
-        {
-            var rest = input - sum;
-            resultBanknotes[banknote.Key] = banknote.Value;
-            input = rest;
-        }
-    }
-
-    if (input == 0)
-    {
-        banknotes = tempBanknotes;
-
-        Console.WriteLine("Your money:");
-
-        foreach (var banknote in resultBanknotes)
+        foreach (var banknote in result.Item1)
         {
             Console.WriteLine($"{banknote.Key} {banknote.Value}");
         }
@@ -60,6 +27,58 @@ while (true)
     {
         Console.WriteLine("Insufficient funds to issue");
     }
+}
+
+(IDictionary<int, int>, IDictionary<int,int>, int) GetMoney(int input, IDictionary<int, int> banknotes)
+{
+    var tempBanknotes = new Dictionary<int, int>();
+    var resultBanknotes = new Dictionary<int, int>();
+    var tempInput = input;
+
+    foreach (var banknote in banknotes)
+    {
+        if (tempInput < banknote.Key)
+        {
+            tempBanknotes[banknote.Key] = banknote.Value;
+            continue;
+        }
+
+        var sum = banknote.Key * banknote.Value;
+
+        if (sum == tempInput)
+        {
+            resultBanknotes[banknote.Key] = banknote.Value;
+            tempInput = 0;
+            break;
+        }
+
+        if (sum > tempInput)
+        {
+            var rest = tempInput % banknote.Key;
+            var needBanknotes = (tempInput - rest) / banknote.Key;
+            tempBanknotes[banknote.Key] = banknote.Value - needBanknotes;
+            resultBanknotes[banknote.Key] = needBanknotes;
+            tempInput = rest;
+        }
+        else
+        {
+            var rest = tempInput - sum;
+            resultBanknotes[banknote.Key] = banknote.Value;
+            tempInput = rest;
+        }
+    }
+
+    if(tempInput == 0)
+    {
+        return (resultBanknotes, tempBanknotes, tempInput);
+    }
+
+    if(tempInput != 0 && banknotes.Count == 1)
+    {
+        return (null, null, tempInput);
+    }
+
+    return GetMoney(input, banknotes.Skip(1).ToDictionary(k => k.Key, v => v.Value));
 }
 
 IDictionary<int, int> InitBanknotes()
