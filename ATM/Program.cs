@@ -1,4 +1,4 @@
-﻿var banknotes = InitBanknotes();
+﻿var ATMBanknotes = InitBanknotes();
 
 while (true)
 {
@@ -9,76 +9,85 @@ while (true)
     }
 
     var input = int.Parse(userMessage);
-    var result = GetMoney(input, banknotes);
+    var possibleCombinations = CalculateCombinations(new List<int>(), ATMBanknotes, 0, 0, input);
+    var bestCombination = possibleCombinations
+        .OrderBy(p => p.Select(p => p.Value).Sum())
+        .FirstOrDefault();
 
-    if(result.Item3 == 0)
+    if(bestCombination != null)
     {
-        foreach (var banknote in result.Item2)
+        foreach(var combination in bestCombination)
         {
-            banknotes[banknote.Key] = banknote.Value;
-        }
+            ATMBanknotes[combination.Key] = ATMBanknotes[combination.Key] - combination.Value;
 
-        foreach (var banknote in result.Item1)
-        {
-            Console.WriteLine($"{banknote.Key} {banknote.Value}");
+            Console.WriteLine($"{combination.Key} {combination.Value}");
         }
     }
     else
     {
-        Console.WriteLine("Insufficient funds to issue");
+        Console.WriteLine("YOU GET NOTHING");
     }
 }
 
-(IDictionary<int, int>, IDictionary<int,int>, int) GetMoney(int input, IDictionary<int, int> banknotes)
+IEnumerable<IDictionary<int, int>> CalculateCombinations(
+    List<int> tempBancnotes,
+    IDictionary<int, int> ATMBanknotes,
+    int highest,
+    int sum,
+    int input)
 {
-    var tempBanknotes = new Dictionary<int, int>();
-    var resultBanknotes = new Dictionary<int, int>();
-    var tempInput = input;
+    var result = new List<IDictionary<int, int>>();
 
-    foreach (var banknote in banknotes)
+    if (sum == input)
     {
-        if (tempInput < banknote.Key)
-        {
-            tempBanknotes[banknote.Key] = banknote.Value;
-            continue;
-        }
+        var combination = CreateCombination(tempBancnotes, ATMBanknotes);
 
-        var sum = banknote.Key * banknote.Value;
-
-        if (sum == tempInput)
+        if(combination != null && combination.Count != 0)
         {
-            resultBanknotes[banknote.Key] = banknote.Value;
-            tempInput = 0;
-            break;
-        }
-
-        if (sum > tempInput)
-        {
-            var rest = tempInput % banknote.Key;
-            var needBanknotes = (tempInput - rest) / banknote.Key;
-            tempBanknotes[banknote.Key] = banknote.Value - needBanknotes;
-            resultBanknotes[banknote.Key] = needBanknotes;
-            tempInput = rest;
-        }
-        else
-        {
-            var rest = tempInput - sum;
-            resultBanknotes[banknote.Key] = banknote.Value;
-            tempInput = rest;
+            result.Add(combination);
         }
     }
 
-    if(tempInput == 0)
+    if (sum > input)
     {
-        return (resultBanknotes, tempBanknotes, tempInput);
+        return result;
     }
 
-    if(tempInput != 0 && banknotes.Count == 1)
+    foreach (var value in ATMBanknotes)
     {
-        return (null, null, tempInput);
+        if (value.Key >= highest)
+        {
+            var copy = new List<int>(tempBancnotes) { value.Key };
+            var newSum = sum + value.Key;
+            var combinations = CalculateCombinations(copy, ATMBanknotes, value.Key, newSum, input);
+            
+            result.AddRange(combinations);
+        }
     }
 
-    return GetMoney(input, banknotes.Skip(1).ToDictionary(k => k.Key, v => v.Value));
+    return result;
+}
+
+IDictionary<int, int>? CreateCombination(IReadOnlyCollection<int> tempBancnotes, IDictionary<int, int> ATMBanknotes)
+{
+    var combination = new Dictionary<int, int>();
+
+    foreach(var bancnote in ATMBanknotes)
+    {
+        var numberOfBanknotes = tempBancnotes.Count(value => value == bancnote.Key);
+
+        if(numberOfBanknotes > bancnote.Value)
+        {
+            return null;
+        }
+
+        if(numberOfBanknotes != 0)
+        {
+            combination[bancnote.Key] = numberOfBanknotes;
+        }
+    }
+
+    return combination;
 }
 
 IDictionary<int, int> InitBanknotes()
